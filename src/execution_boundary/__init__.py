@@ -18,12 +18,16 @@ Out of Scope:
 
 from .interface import ExecutionBoundary
 from .models import ExecutionIntent, Decision, Proof, VerificationResult, DecisionType
+from .engine import ExecutionBoundaryEngine
+from .risk import calculate_risk_score
 
 __all__ = [
     "ExecutionBoundary",
+    "ExecutionBoundaryEngine",
     "ExecutionIntent",
     "Decision",
     "Proof",
     "VerificationResult",
     "DecisionType",
+    "calculate_risk_score",
 ]
