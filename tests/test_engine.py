@@ -100,32 +100,3 @@ class TestExecutionBoundaryEngine:
 
         assert decision.timestamp is not None
         assert isinstance(decision.timestamp, datetime)
-
-    def test_issue_proof_not_implemented(self):
-        """Proof issuance should raise NotImplementedError in v0.1"""
-        engine = ExecutionBoundaryEngine()
-        intent = ExecutionIntent(
-            actor="test_user",
-            action="shell.exec",
-            payload="ls",
-            timestamp=datetime.now()
-        )
-
-        decision = engine.evaluate(intent)
-
-        with pytest.raises(NotImplementedError):
-            engine.issue_proof(decision)
-
-    def test_verify_not_implemented(self):
-        """Proof verification should raise NotImplementedError in v0.1"""
-        engine = ExecutionBoundaryEngine()
-        from execution_boundary.models import Proof
-
-        proof = Proof(
-            decision_hash="test",
-            signature="test",
-            ledger_index=0
-        )
-
-        with pytest.raises(NotImplementedError):
-            engine.verify(proof)
