@@ -5,9 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "execution-boundary"
 version = "0.1.0"
-description = "Core execution boundary engine with cryptographic proof"
+description = "A deterministic execution boundary engine for AI agents with cryptographic proof"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "Proprietary"}
+authors = [
+    {name = "Nick Heo", email = "nick-heo-eg@users.noreply.github.com"}
+]
+keywords = ["ai", "agent", "boundary", "execution", "proof", "ledger", "governance"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "cryptography>=42.0.0",
 ]

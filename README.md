@@ -1,21 +1,41 @@
-# AI Execution Boundary Core (Private)
+# AI Execution Boundary Core
 
-Core execution boundary engine with cryptographic proof.
+**A deterministic execution boundary engine for AI agents with cryptographic proof.**
 
-**Version:** 0.1
-**Status:** Interface sealed, implementation complete
+**Version:** 0.1.0 | **Status:** Interface Frozen | **License:** Private (Future-openable)
 
 ---
 
 ## What This Is
 
-A deterministic execution boundary engine that:
+Developer infrastructure for AI agent safety. Drop-in SDK that provides:
 
-1. **Evaluates** execution requests (shell commands, operations)
-2. **Decides** ALLOW or HALT based on risk scoring
-3. **Issues** cryptographic proof (ED25519 signature)
-4. **Records** decisions in append-only ledger (hash chain)
-5. **Verifies** proof integrity offline
+1. **Pre-execution evaluation** of AI agent actions (shell commands, API calls, DB operations)
+2. **Deterministic decisions** (ALLOW or HALT) based on rule-based risk scoring
+3. **Cryptographic proof** (ED25519 signatures) for every decision
+4. **Immutable audit trail** (hash-chain ledger) with offline verification
+5. **Zero cloud dependencies** — runs entirely offline
+
+**Use this when:** Your AI agent can execute dangerous operations and you need verifiable proof of what was allowed or blocked.
+
+---
+
+## Why Use This
+
+### For AI Agent Developers
+
+- **Pre-execution blocking** instead of post-execution cleanup
+- **Deterministic decisions** (same input → same output, no LLM randomness)
+- **Signed proof** of every decision for audit trails
+- **Minimal dependencies** (only `cryptography` library)
+- **Works offline** (no API calls, no cloud services)
+
+### Common Use Cases
+
+1. **AI agents with shell access** (LangChain, AutoGPT, CrewAI)
+2. **LLM apps making API calls** (payment APIs, external services)
+3. **AI assistants with database access** (SQL execution, schema changes)
+4. **Autonomous systems** requiring verifiable decision logs
 
 ---
 
@@ -28,11 +48,11 @@ A deterministic execution boundary engine that:
 - Offline verification
 
 **Out of Scope:**
-- UI/UX
-- Transport layer (Telegram, HTTP, etc.)
-- Agent adapters
-- Multi-tenant support
-- SaaS hosting
+- UI/UX layers
+- Transport adapters (Telegram, HTTP, etc.)
+- Multi-tenant SaaS
+- LLM-based risk scoring (v0.2+)
+- Compliance certification
 
 ---
 
@@ -52,36 +72,98 @@ A deterministic execution boundary engine that:
 
 ---
 
-## Interface
+## Quick Start
+
+### Installation
+
+```bash
+# Clone repository
+git clone https://github.com/Nick-heo-eg/ai-execution-boundary-core.git
+cd ai-execution-boundary-core
+
+# Install dependencies
+pip install cryptography
+
+# Run tests
+PYTHONPATH=src pytest tests/ -v
+# → 39 passed in 0.22s
+```
+
+### Basic Usage
 
 ```python
+from datetime import datetime, timezone
 from execution_boundary import (
     ExecutionBoundaryEngine,
     ExecutionIntent
 )
 
 # Initialize engine
-engine = ExecutionBoundaryEngine()
-
-# Create intent
-intent = ExecutionIntent(
-    actor="user#123",
-    action="shell.exec",
-    payload="rm file.txt",
-    timestamp=datetime.now()
+engine = ExecutionBoundaryEngine(
+    halt_threshold=80  # Block commands with risk >= 80
 )
 
-# Evaluate → Decision
+# AI agent wants to execute a shell command
+agent_command = "rm -rf /"
+
+# Create execution intent
+intent = ExecutionIntent(
+    actor="agent#123",
+    action="shell.exec",
+    payload=agent_command,
+    timestamp=datetime.now(timezone.utc)
+)
+
+# Evaluate risk
 decision = engine.evaluate(intent)
-# → Decision(decision="ALLOW", risk_score=60, reason="File deletion command")
+print(f"Decision: {decision.decision}")  # → "HALT"
+print(f"Risk: {decision.risk_score}/100")  # → "95/100"
+print(f"Reason: {decision.reason}")  # → "Critical: root deletion"
 
-# Issue proof → Ledger append + signature
+# Issue cryptographic proof
 proof = engine.issue_proof(decision)
-# → Proof(decision_hash="abc...", signature="def...", ledger_index=0)
+print(f"Signature: {proof.signature[:32]}...")  # → Hex signature
+print(f"Ledger index: {proof.ledger_index}")  # → 0
 
-# Verify proof integrity
+# Later: Verify proof integrity
 result = engine.verify(proof)
-# → VerificationResult(valid=True, message="Proof verified at ledger index 0")
+print(f"Valid: {result.valid}")  # → True
+```
+
+### Integration Example
+
+```python
+import subprocess
+from execution_boundary import ExecutionBoundaryEngine, ExecutionIntent
+
+engine = ExecutionBoundaryEngine()
+
+def safe_shell_exec(command: str, actor: str):
+    """Execute shell command with boundary check."""
+    intent = ExecutionIntent(
+        actor=actor,
+        action="shell.exec",
+        payload=command,
+        timestamp=datetime.now(timezone.utc)
+    )
+
+    decision = engine.evaluate(intent)
+    proof = engine.issue_proof(decision)
+
+    if decision.decision == "ALLOW":
+        # Execute and return result
+        result = subprocess.run(command, shell=True, capture_output=True)
+        return {"executed": True, "proof": proof, "output": result.stdout}
+    else:
+        # Blocked with signed proof
+        return {"executed": False, "proof": proof, "reason": decision.reason}
+
+# Use with AI agent
+result = safe_shell_exec("ls -la", actor="agent#123")
+# → {"executed": True, "proof": <Proof>, "output": <bytes>}
+
+result = safe_shell_exec("rm -rf /", actor="agent#123")
+# → {"executed": False, "proof": <Proof>, "reason": "Critical: root deletion"}
 ```
 
 ---
@@ -110,20 +192,6 @@ result = engine.verify(proof)
 
 ---
 
-## Installation
-
-```bash
-# Clone
-git clone https://github.com/Nick-heo-eg/ai-execution-boundary-core.git
-cd ai-execution-boundary-core
-
-# Install dependencies
-pip install cryptography
-
-# Run tests
-PYTHONPATH=src pytest tests/ -v
-# → 39 passed in 0.22s
-```
 
 ---
 
@@ -172,11 +240,19 @@ judgment_ledger.ndjson    # Append-only ledger
 
 ---
 
-## Related Repositories
+## Documentation
 
-- **Integration Example**: [`ai-execution-boundary-telegram-demo`](https://github.com/Nick-heo-eg/ai-execution-boundary-telegram-demo) (public)
-- **Specification**: `ai-execution-boundary-spec` (public)
-- **Schema**: `ai-judgment-trail-spec` (public)
+- **[API_STABILITY.md](API_STABILITY.md)** — Public API guarantees and versioning policy
+- **[CHANGELOG.md](CHANGELOG.md)** — Version history and release notes
+- **[PRODUCT_IDENTITY.md](PRODUCT_IDENTITY.md)** — Product positioning and strategy
+
+---
+
+## Examples
+
+- **[Telegram Integration](https://github.com/Nick-heo-eg/ai-execution-boundary-telegram-demo)** — Reference implementation with Telegram bot
+- **LangChain Integration** — Coming soon
+- **AutoGPT Integration** — Coming soon
 
 ---
 
