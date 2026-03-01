@@ -1,0 +1,8 @@
+{
+  "token_type": "HUMAN_AUTHZ",
+  "token_id": "hat_demo_001",
+  "owner": "team.finance",
+  "approved_by": "user.heo",
+  "bound_agent_id": "agent.finance.approver",
+  "scopes": ["wire_transfer.approve"]
+}
