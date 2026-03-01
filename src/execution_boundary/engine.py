@@ -82,9 +82,12 @@ class ExecutionBoundaryEngine(ExecutionBoundary):
         """
         Issue cryptographic proof for a decision.
 
+        Works for ALLOW *and* negative decisions (HALT/HOLD/DENY).
+        Negative proofs are appended to the ledger with negative_proof=True.
+
         Process:
         1. Get previous ledger hash
-        2. Create ledger entry
+        2. Create ledger entry (includes boundary_id, policy_hash, negative_proof)
         3. Sign entry with ED25519
         4. Compute entry hash
         5. Append to ledger
@@ -94,18 +97,23 @@ class ExecutionBoundaryEngine(ExecutionBoundary):
             decision: The decision to prove
 
         Returns:
-            Proof object with signature and ledger reference
+            Proof object with signature, ledger reference, and boundary_id
         """
         # Get previous hash for chain
         previous_hash = self.ledger.get_previous_hash()
 
-        # Create ledger entry
+        # Create ledger entry — fingerprint + instance_hash both recorded
         entry = {
-            "timestamp": decision.timestamp.isoformat(),
-            "decision": decision.decision,
-            "risk_score": decision.risk_score,
-            "reason": decision.reason,
-            "previous_hash": previous_hash
+            "timestamp":              decision.timestamp.isoformat(),
+            "decision":               decision.decision,
+            "risk_score":             decision.risk_score,
+            "reason":                 decision.reason,
+            "boundary_id":            getattr(decision, "boundary_id", ""),
+            "policy_hash":            getattr(decision, "policy_hash", ""),
+            "decision_hash":          getattr(decision, "decision_hash", ""),           # fingerprint
+            "decision_instance_hash": getattr(decision, "decision_instance_hash", ""), # per-boundary
+            "negative_proof":         getattr(decision, "negative_proof", False),
+            "previous_hash":          previous_hash,
         }
 
         # Sign entry
@@ -121,9 +129,11 @@ class ExecutionBoundaryEngine(ExecutionBoundary):
         ledger_index = len(all_entries) - 1
 
         return Proof(
-            decision_hash=entry_hash,
-            signature=signature,
-            ledger_index=ledger_index
+            decision_hash  = entry_hash,
+            signature      = signature,
+            ledger_index   = ledger_index,
+            boundary_id    = getattr(decision, "boundary_id", ""),
+            negative_proof = getattr(decision, "negative_proof", False),
         )
 
     def verify(self, proof: Proof) -> VerificationResult:

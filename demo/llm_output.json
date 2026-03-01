@@ -1,0 +1,11 @@
+{
+  "agent_id": "agent.finance.approver",
+  "suggested_action": "wire_transfer",
+  "params": {
+    "amount_usd": 50000,
+    "beneficiary": "beneficiary.vendor_A",
+    "memo": "invoice_2026_02"
+  },
+  "model": "demo-fixed-output",
+  "run_id": "demo-run-001"
+}

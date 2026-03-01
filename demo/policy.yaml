@@ -1,0 +1,34 @@
+version: 1
+policy_id: exec-gate-demo-v0
+defaults:
+  mode: fail_closed
+  deny_on_unknown_action: true
+
+identity:
+  agents:
+    - agent_id: "agent.finance.approver"
+      owner: "team.finance"
+      allowed_actions:
+        - action: "wire_transfer"
+          irreversible: true
+          constraints:
+            max_amount_usd: 100000
+            allowed_beneficiaries:
+              - "beneficiary.vendor_A"
+              - "beneficiary.payroll"
+          authority:
+            require_human_token: true
+            token_type: "HUMAN_AUTHZ"
+            token_scopes:
+              - "wire_transfer.approve"
+            token_must_match:
+              owner: true
+              agent_id: true
+
+actions:
+  wire_transfer:
+    irreversible: true
+    requires:
+      - precheck: "beneficiary_allowlist"
+      - precheck: "amount_threshold"
+      - precheck: "human_authority_token"
