@@ -114,6 +114,29 @@ Same action. Different severity state. Different outcome.
 
 ---
 
+## LangChain adapter
+
+```bash
+pip install agent-execution-guard[langchain]
+```
+
+```python
+from agent_execution_guard.langchain_adapter import GuardedTool
+
+def delete_file(path: str) -> str:
+    return f"Deleted {path}"
+
+guarded = GuardedTool(delete_file, actor="agent.ops")
+
+guarded("test.txt")   # low risk → executes
+guarded("rm -rf /")   # critical risk → raises ExecutionDeniedError
+```
+
+`GuardedTool` wraps any callable. The guard runs before the tool executes.
+DENY blocks execution and issues a signed proof. The tool never runs.
+
+---
+
 ## Policy guard
 
 Unknown agents and actions are denied by default.
@@ -209,7 +232,7 @@ pip install opentelemetry-api  # OTel span export
 - [x] Severity-driven state machine (ACTIVE / OBSERVE / COOLDOWN)
 - [x] Policy guard (unknown agent/action → DENY)
 - [x] HOLD state + human approval checkpoint
-- [ ] LangChain adapter (v0.2.0)
+- [x] LangChain adapter (`GuardedTool`)
 - [ ] OTel-native decision trail export
 - [ ] MCP integration
 
