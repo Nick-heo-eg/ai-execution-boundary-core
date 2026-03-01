@@ -182,6 +182,9 @@ class SeverityGate:
                 engine                = adapted,
                 policy                = policy,
                 hold_deadline_seconds = hold_deadline_seconds,
+                _severity_state       = state,
+                _severity_score       = score,
+                _severity_threshold   = threshold,
             )
         except ExecutionDeniedError as e:
             denied, error = True, e

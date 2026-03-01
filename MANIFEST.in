@@ -1,0 +1,6 @@
+exclude tests/*
+exclude docs/*
+exclude examples/*
+exclude demo/*
+exclude *.ndjson
+exclude *.json

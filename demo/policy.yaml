@@ -2,7 +2,8 @@ version: 1
 policy_id: exec-gate-demo-v0
 defaults:
   mode: fail_closed
-  deny_on_unknown_action: true
+  unknown_agent:  DENY   # fail-closed: unrecognized agent → immediate DENY
+  unknown_action: DENY   # fail-closed: unrecognized action → immediate DENY
 
 identity:
   agents:

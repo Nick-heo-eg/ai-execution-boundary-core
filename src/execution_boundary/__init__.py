@@ -34,6 +34,7 @@ from .engine import ExecutionBoundaryEngine
 from .risk import calculate_risk_score
 from .enforce import enforce_boundary, check_hold_expired
 from .severity_gate import SeverityGate, SystemSeverity, SeverityGateResult
+from .policy_guard import PolicyGuard, PolicyViolation, check_policy
 
 __all__ = [
     # Core
@@ -62,4 +63,8 @@ __all__ = [
     "SeverityGate",
     "SystemSeverity",
     "SeverityGateResult",
+    # Policy guard
+    "PolicyGuard",
+    "PolicyViolation",
+    "check_policy",
 ]

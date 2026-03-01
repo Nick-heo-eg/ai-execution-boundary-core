@@ -24,6 +24,7 @@ from .models import (
     ExecutionIntent,
     new_boundary_id,
 )
+from .policy_guard import PolicyViolation, check_policy
 
 # ── OTel optional import ──────────────────────────────────────────────────────
 try:
@@ -87,18 +88,23 @@ def enforce_boundary(
     engine,                         # ExecutionBoundaryEngine instance
     policy: Any = None,             # policy snapshot for policy_hash
     hold_deadline_seconds: int = 300,
+    # Severity context — injected by SeverityGate for OTel attrs
+    _severity_state: Optional[str] = None,
+    _severity_score: Optional[float] = None,
+    _severity_threshold: Optional[int] = None,
 ) -> BoundaryRecord:
     """
     Unified execution boundary enforcement.
 
     Flow
     ----
+    0. PolicyGuard  — identity check (unknown agent/action → DENY immediately)
     1. boundary_id  — new unique ID (≠ trace_id)
     2. policy_hash  — SHA-256 over policy snapshot
     3. OTel span    — "execution.boundary" (or no-op)
     4. evaluate()   — risk/policy decision
     5. decision_hash — canonical SHA-256
-    6. OTel attrs   — exec.boundary.id, exec.decision.outcome, …
+    6. OTel attrs   — exec.boundary.id, exec.decision.outcome, severity.*
     7. outcome      — ALLOW / DENY / HOLD
     8. exception    — ExecutionDeniedError or ExecutionHeldError (non-ALLOW)
     9. proof        — issue_proof() for ALLOW *and* DENY/HOLD (negative proof)
@@ -110,6 +116,9 @@ def enforce_boundary(
     engine:               ExecutionBoundaryEngine (or compatible)
     policy:               Policy snapshot (for deterministic policy_hash)
     hold_deadline_seconds: Seconds from now until HOLD expires
+    _severity_state:      ACTIVE | OBSERVE | COOLDOWN (from SeverityGate)
+    _severity_score:      float [0.0–1.0] (from SeverityGate)
+    _severity_threshold:  effective halt_threshold (from SeverityGate)
 
     Returns
     -------
@@ -117,10 +126,65 @@ def enforce_boundary(
 
     Raises
     ------
-    ExecutionDeniedError  — outcome DENY
+    ExecutionDeniedError  — outcome DENY (including policy violations)
     ExecutionHeldError    — outcome HOLD
     ExecutionExpiredError — HOLD past deadline_ts
     """
+    # ── 0. PolicyGuard — identity check ───────────────────────────────────────
+    # Fail-closed: unknown agent or unknown action → immediate DENY.
+    # This runs before severity/risk scoring — policy identity is not
+    # state-dependent. An unknown agent is denied at ACTIVE just as at COOLDOWN.
+    try:
+        check_policy(intent.actor, intent.action, policy)
+    except PolicyViolation as pv:
+        # Issue a minimal DENY without going through the full engine path.
+        # We still need a signed negative proof — use engine.evaluate() with
+        # a synthetic risk=100 so the engine produces HALT, then override reason.
+        boundary_id = new_boundary_id()
+        policy_hash = _hash_policy(policy)
+        ts_now      = datetime.now(timezone.utc)
+        ts_iso      = ts_now.isoformat()
+
+        # Synthesize a DENY decision for the proof trail
+        deny_decision = Decision(
+            decision   = "HALT",
+            risk_score = 100,
+            reason     = f"policy_violation:{pv.reason_code}",
+            timestamp  = ts_now,
+        )
+        deny_decision.boundary_id            = boundary_id
+        deny_decision.decision_id            = boundary_id
+        deny_decision.policy_hash            = policy_hash
+        deny_decision.decision_hash          = deny_decision._compute_hash()
+        deny_decision.decision_instance_hash = deny_decision._compute_instance_hash()
+
+        proof = engine.issue_proof(deny_decision)
+
+        with _start_boundary_span("execution.boundary") as span:
+            _write_span_attrs(
+                span, deny_decision, EnforcementOutcome.DENY, intent, None,
+                severity_state=_severity_state,
+                severity_score=_severity_score,
+                severity_threshold=_severity_threshold,
+            )
+            span.add_event(
+                "exec.negative_proof",
+                {
+                    "exec.boundary.id":        boundary_id,
+                    "exec.block.reason":       deny_decision.reason,
+                    "exec.negative_proof":     "true",
+                    "exec.policy.violation":   pv.reason_code,
+                },
+            )
+            if _HAS_OTEL:
+                span.set_status(_StatusCode.ERROR, f"DENY: {deny_decision.reason}")
+
+        raise ExecutionDeniedError(
+            boundary_id = boundary_id,
+            reason      = deny_decision.reason,
+            risk_score  = 100,
+        )
+
     boundary_id = new_boundary_id()
     policy_hash = _hash_policy(policy)
     ts_now      = datetime.now(timezone.utc)
@@ -154,7 +218,12 @@ def enforce_boundary(
             # (fresh evaluations are never expired; this is a guard for callers
             #  that re-invoke enforce_boundary with an existing deadline_ts passed in)
 
-        _write_span_attrs(span, decision, outcome, intent, deadline_ts)
+        _write_span_attrs(
+            span, decision, outcome, intent, deadline_ts,
+            severity_state=_severity_state,
+            severity_score=_severity_score,
+            severity_threshold=_severity_threshold,
+        )
 
         # ── 9. issue_proof (ALLOW and negative proof) ─────────────────────────
         proof = engine.issue_proof(decision)
@@ -292,9 +361,18 @@ def _map_outcome(decision_type: str) -> EnforcementOutcome:
     return mapping.get(decision_type, EnforcementOutcome.DENY)
 
 
-def _write_span_attrs(span, decision: Decision, outcome: EnforcementOutcome,
-                      intent: ExecutionIntent, deadline_ts: Optional[str]) -> None:
-    """Write exec.* attributes to the active OTel span (or no-op)."""
+def _write_span_attrs(
+    span,
+    decision: "Decision",
+    outcome: EnforcementOutcome,
+    intent: ExecutionIntent,
+    deadline_ts: Optional[str],
+    *,
+    severity_state: Optional[str] = None,
+    severity_score: Optional[float] = None,
+    severity_threshold: Optional[int] = None,
+) -> None:
+    """Write exec.* and severity.* attributes to the active OTel span (or no-op)."""
     span.set_attribute("exec.boundary.id",              decision.boundary_id)
     span.set_attribute("exec.decision.id",              decision.decision_id)
     span.set_attribute("exec.decision.hash",            decision.decision_hash)            # fingerprint
@@ -309,3 +387,10 @@ def _write_span_attrs(span, decision: Decision, outcome: EnforcementOutcome,
         span.set_attribute("exec.run.id", intent.run_id)
     if deadline_ts:
         span.set_attribute("exec.approval.deadline", deadline_ts)
+    # ── Severity context (set by SeverityGate) ────────────────────────────────
+    if severity_state is not None:
+        span.set_attribute("execution.state",     severity_state)
+    if severity_score is not None:
+        span.set_attribute("severity.score",      round(severity_score, 4))
+    if severity_threshold is not None:
+        span.set_attribute("severity.threshold",  severity_threshold)
