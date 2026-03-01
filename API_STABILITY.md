@@ -1,6 +1,6 @@
 # API Stability Policy
 
-**Version:** 0.1.0
+**Version:** 0.2.1
 **Status:** Interface Frozen
 **Effective:** 2026-02-22
 
@@ -153,4 +153,4 @@ For questions about API stability or breaking changes:
 ---
 
 **Last Updated:** 2026-02-22
-**Next Review:** v0.2.0 release
+**Next Review:** v0.3.0 release

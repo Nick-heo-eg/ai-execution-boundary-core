@@ -2,7 +2,7 @@
 
 Installation instructions for AI Execution Boundary Core.
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 **Python:** 3.10+
 **Status:** Public (PyPI)
 
@@ -109,11 +109,11 @@ pip install -e ../ai-execution-boundary-core
 # Option 1: Editable install (development)
 -e ../ai-execution-boundary-core
 
-# Option 2: Direct GitHub install (if public in future)
-# execution-boundary @ git+https://github.com/Nick-heo-eg/ai-execution-boundary-core.git@v0.1.0
+# Option 2: GitHub install
+# agent-execution-guard @ git+https://github.com/Nick-heo-eg/ai-execution-boundary-core.git@v0.2.1
 
-# Option 3: PyPI install (when published)
-# execution-boundary==0.1.0
+# Option 3: PyPI install (recommended)
+# agent-execution-guard==0.2.1
 ```
 
 ---
@@ -278,5 +278,5 @@ rm .private_key.pem judgment_ledger.ndjson
 
 ---
 
-**Last Updated:** 2026-02-22
-**Version:** 0.1.0
+**Last Updated:** 2026-03-02
+**Version:** 0.2.1

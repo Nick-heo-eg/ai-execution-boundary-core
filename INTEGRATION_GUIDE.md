@@ -1,6 +1,6 @@
 # Integration Guide
 
-How to integrate agent-execution-guard (v0.2.0) into AI agents and systems.
+How to integrate agent-execution-guard (v0.2.1) into AI agents and systems.
 
 **Version:** 0.2.0
 **Target:** AI Agent Developers
