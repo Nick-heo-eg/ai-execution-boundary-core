@@ -39,7 +39,8 @@ htmlcov/
 *~
 
 # Execution artifacts
-.private_key.pem
+demo/out/*.pem
+demo/out/*.ndjson
 *.ndjson
 *.json
 execution_output/
