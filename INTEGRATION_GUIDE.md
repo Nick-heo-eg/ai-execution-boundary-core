@@ -11,13 +11,7 @@ How to integrate agent-execution-guard (v0.2.1) into AI agents and systems.
 
 All external actions must pass through the execution boundary before running.
 
-Use the official adapter:
-
-```
-GuardedTool
-```
-
-Or the direct path:
+Use the direct path:
 
 ```
 ExecutionIntent → enforce_boundary() → execute
@@ -27,38 +21,7 @@ Boundary is always pre-execution.
 
 ---
 
-## 2. LangChain Integration (Recommended)
-
-### GuardedTool Adapter
-
-```python
-from agent_execution_guard.langchain_adapter import GuardedTool
-
-def shell_exec(command: str) -> str:
-    import subprocess
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    return result.stdout
-
-safe_shell = GuardedTool(shell_exec, actor="langchain#agent")
-
-safe_shell("ls -la")       # low risk → executes
-safe_shell("rm -rf /")     # critical risk → raises ExecutionDeniedError
-```
-
-The adapter automatically:
-
-- Creates `ExecutionIntent`
-- Evaluates risk
-- Enforces boundary (raises on DENY)
-- Issues cryptographic proof
-
-No manual evaluate calls required.
-
----
-
-## 3. Custom Agent Integration
-
-If not using LangChain:
+## 2. Custom Agent Integration
 
 ```python
 from datetime import datetime, timezone
@@ -86,7 +49,7 @@ except GuardDeniedError as e:
 
 ---
 
-## 4. Advanced: Direct enforce_boundary()
+## 3. Advanced: Direct enforce_boundary()
 
 For full control over engine configuration:
 
@@ -115,7 +78,7 @@ except ExecutionDeniedError as e:
 
 ---
 
-## 5. API Gateway (Advanced)
+## 4. API Gateway (Advanced)
 
 Use boundary in middleware before critical operations:
 
@@ -128,7 +91,7 @@ response.headers["X-Proof-Signature"] = record.proof_signature
 
 ---
 
-## 6. Best Practices
+## 5. Best Practices
 
 ### Always enforce before execution
 
@@ -170,7 +133,7 @@ engine.ledger.verify_integrity()
 
 ---
 
-## 7. Troubleshooting
+## 6. Troubleshooting
 
 **All actions blocked**
 
@@ -189,7 +152,7 @@ Implement rotation at application layer. Core appends only — no built-in rotat
 
 ---
 
-## 8. Design Constraints
+## 7. Design Constraints
 
 agent-execution-guard is:
 
