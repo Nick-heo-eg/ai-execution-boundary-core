@@ -21,7 +21,7 @@ This library puts a deterministic gate between decision and execution.
 
 ```python
 from datetime import datetime, timezone
-from agent_execution_guard import ExecutionGuard, Intent
+from agent_execution_guard import ExecutionGuard, Intent, ALLOW_ALL
 
 guard = ExecutionGuard()
 
@@ -32,9 +32,10 @@ intent = Intent(
     timestamp=datetime.now(timezone.utc),
 )
 
+# policy is required — no policy = no execution (fail-closed)
+# use ALLOW_ALL to skip identity check and rely on risk scoring only
 try:
-    result = guard.evaluate(intent)
-    print(result.decision)    # ALLOW
+    result = guard.evaluate(intent, policy=ALLOW_ALL)
     print(result.risk_score)  # 0–100
 
 except Exception as e:
@@ -46,9 +47,10 @@ except Exception as e:
 ## Example 1 — DENY
 
 ```python
-from agent_execution_guard import ExecutionGuard, Intent, GuardDeniedError
+from agent_execution_guard import ExecutionGuard, Intent, GuardDeniedError, ALLOW_ALL
 from datetime import datetime, timezone
 
+# halt_threshold=39: wire_transfer scores 40 → DENY
 guard = ExecutionGuard(halt_threshold=39)
 
 intent = Intent(
@@ -59,7 +61,7 @@ intent = Intent(
 )
 
 try:
-    guard.evaluate(intent)
+    guard.evaluate(intent, policy=ALLOW_ALL)
 
 except GuardDeniedError as e:
     print(f"Denied: {e.reason}")
@@ -116,7 +118,7 @@ Same action. Different severity state. Different outcome.
 
 ## Policy guard
 
-Unknown agents and actions are denied by default.
+`policy` is required. No policy = no execution (fail-closed by default).
 
 ```yaml
 # policy.yaml
@@ -138,6 +140,14 @@ with open("policy.yaml") as f:
 
 guard.evaluate(intent, policy=policy)
 # unknown agent → immediate DENY, signed proof issued
+```
+
+To skip identity check and rely on risk scoring only:
+
+```python
+from agent_execution_guard import ALLOW_ALL
+
+guard.evaluate(intent, policy=ALLOW_ALL)
 ```
 
 ---

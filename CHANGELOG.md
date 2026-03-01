@@ -2,6 +2,16 @@
 
 ---
 
+## [0.2.1] - 2026-03-02
+
+### Fixed
+
+- `policy=None` → `GuardDeniedError("no_policy")` — fail-closed enforced at API level
+- Add `ALLOW_ALL` sentinel for explicit opt-out of identity check
+- README examples aligned with required `policy` argument
+
+---
+
 ## [0.1.0] - 2026-03-01
 
 Initial public release.
