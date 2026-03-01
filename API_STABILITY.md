@@ -120,17 +120,12 @@ warnings.warn("old_method() is deprecated, use new_method()", DeprecationWarning
 
 ## Future-Openable Design
 
-This core is currently **private** but designed to be **publicly releasable** in the future.
+This core is **public** (Apache 2.0, PyPI: agent-execution-guard).
 
 **Current strategy:**
-- Private repository (proprietary use)
 - Public API designed for stability
-- Internal implementation may change
-
-**Future options:**
-- Open source release (when strategically appropriate)
-- Dual licensing (Core open, Extensions proprietary)
-- Enterprise licensing (SaaS uses private core)
+- Internal implementation may change between minor versions
+- Breaking changes only on major version bump
 
 **Design principles:**
 - Public API is minimal and clean
