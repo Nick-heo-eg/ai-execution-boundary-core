@@ -34,12 +34,20 @@ Initial public release.
 
 ---
 
+## [0.2.0] - 2026-03-01
+
+### Added
+
+- `GuardedTool` LangChain adapter — wraps any callable with execution guard
+- Optional `langchain-core` dependency (`pip install agent-execution-guard[langchain]`)
+- 5 adapter tests
+
 ## [Unreleased]
 
-### Planned for v0.2.0
+### Planned for v0.3.0
 
-- LangChain tool adapter
-- README example + 1 integration test
+- OTel-native decision trail export
+- MCP integration
 
 ---
 

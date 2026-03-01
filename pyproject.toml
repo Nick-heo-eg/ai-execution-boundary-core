@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-execution-guard"
-version = "0.1.1"
+version = "0.2.0"
 description = "A lightweight execution guard for AI agents. Decide ALLOW / HOLD / DENY before your agent performs real actions."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,6 +29,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+langchain = ["langchain-core>=0.1.0"]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
