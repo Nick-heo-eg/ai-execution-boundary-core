@@ -213,7 +213,7 @@ pip install opentelemetry-api  # OTel span export
 - [x] Severity-driven state machine (ACTIVE / OBSERVE / COOLDOWN)
 - [x] Policy guard (unknown agent/action → DENY)
 - [x] HOLD state + human approval checkpoint
-- [ ] LangChain adapter (`GuardedTool`)
+- [x] LangChain adapter (`GuardedTool`)
 - [ ] OTel-native decision trail export
 - [ ] MCP integration
 
