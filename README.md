@@ -1,103 +1,64 @@
-# execution-boundary
+# agent-execution-guard
 
-**A risk-adaptive execution control layer.**
+**A lightweight execution guard for AI agents.**
 
-This is not an agent framework. This is not a guardrail.
-This is a deterministic boundary between decision and execution.
-
-> Execution is not default.
-
----
-
-## What this does
-
-When an AI agent — or any automated system — attempts an action,
-`execution-boundary` answers one question:
-
-**Should this execute?**
-
-Not by asking the LLM. Not by checking a prompt.
-By evaluating policy, identity, severity, and irreversibility
-through a deterministic state machine.
-
-```
-Agent Request → Severity Score → State Machine → Gate Decision → Decision Trail
-```
-
-If the answer is no, execution stops. Structurally.
-The agent cannot override it. The LLM cannot talk its way through.
-
----
-
-## Core architecture
-
-### Three-state execution control
-
-```
-ACTIVE ──→ OBSERVE ──→ COOLDOWN
-  ↑                        │
-  └────────────────────────┘
-       (hysteresis exit)
-```
-
-Most systems are binary: PASS or FAIL.
-This system has **OBSERVE** — a state where execution is restricted
-but not frozen. Severity drives the transitions. Hysteresis prevents oscillation.
-
-| State    | Meaning                            | Gate threshold |
-|----------|------------------------------------|----------------|
-| ACTIVE   | Normal operation                   | risk ≥ 80 → DENY |
-| OBSERVE  | Elevated risk — tightened boundary | risk ≥ 60 → DENY |
-| COOLDOWN | High risk — near-lockdown          | risk ≥ 30 → DENY |
-
-Transitions use hysteresis:
-- Enter COOLDOWN: severity ≥ 0.40
-- Exit COOLDOWN: severity < 0.28
-- Between 0.28–0.40: previous state maintained — no oscillation
-
-### Deterministic gate
-
-Every execution request is evaluated against:
-
-- **Action risk score** — rule-based, 0–100 scale
-- **Current system severity** — continuous signal [0.0–1.0]
-- **State machine** — ACTIVE / OBSERVE / COOLDOWN with hysteresis
-- **Effective threshold** — dynamically adjusted by state
-
-Fail-closed by default. Unrecognized action → DENY. Unknown state → DENY.
-
-### Decision trail
-
-Every gate decision is logged with:
-
-- `boundary_id` — unique decision identifier (per boundary crossing)
-- `decision_hash` — deterministic content fingerprint (SHA-256)
-- `decision_instance_hash` — per-boundary tamper-evident ID
-- `policy_hash` — which policy version was enforced
-- `outcome` — ALLOW / HOLD / DENY / EXPIRED
-- `proof_signature` — ED25519 signature over the decision entry
-- `ledger_index` — position in the append-only hash-chain ledger
-
-Compatible with OpenTelemetry `exec.*` semantic conventions.
-
----
-
-## Quick start
+Decide `ALLOW` / `HOLD` / `DENY` before your agent performs real actions.
 
 ```bash
-pip install cryptography pyyaml
+pip install agent-execution-guard
 ```
 
-### Basic gate
+---
+
+## The problem
+
+Your AI agent will execute anything.
+
+```python
+agent.run("wire_transfer amount=50000 to=external")   # proceeds
+agent.run("delete all user records")                   # also proceeds
+agent.run("send mass email to customer list")          # also proceeds
+```
+
+There is no structural layer that stops it.
+Prompts can be bypassed. Guardrails can be talked around.
+
+**This is that layer.**
+
+---
+
+## Quickstart
 
 ```python
 from datetime import datetime, timezone
-from execution_boundary import ExecutionBoundaryEngine, ExecutionIntent, enforce_boundary
-from execution_boundary import ExecutionDeniedError, ExecutionHeldError
+from agent_execution_guard import ExecutionGuard, Intent
 
-engine = ExecutionBoundaryEngine(halt_threshold=80)
+guard = ExecutionGuard()
 
-intent = ExecutionIntent(
+intent = Intent(
+    actor="agent.finance",
+    action="wire_transfer",
+    payload="wire_transfer amount=50000 to=external",
+    timestamp=datetime.now(timezone.utc),
+)
+
+result = guard.evaluate(intent)
+print(result.decision)    # ALLOW / DENY / HOLD
+print(result.risk_score)  # 0–100
+print(result.reason)
+```
+
+---
+
+## Example 1 — Finance: DENY
+
+```python
+from agent_execution_guard import ExecutionGuard, Intent, GuardDeniedError
+from datetime import datetime, timezone
+
+guard = ExecutionGuard()
+
+intent = Intent(
     actor="agent.finance",
     action="wire_transfer",
     payload="wire_transfer amount=50000 to=external",
@@ -105,143 +66,172 @@ intent = ExecutionIntent(
 )
 
 try:
-    record = enforce_boundary(intent, engine=engine)
-    # ALLOW — proceed with execution
-    print(f"Allowed: {record.boundary_id}")
+    result = guard.evaluate(intent)
+    print(f"Allowed: {result.boundary_id}")
 
-except ExecutionDeniedError as e:
-    # DENY — structurally blocked, signed proof issued
+except GuardDeniedError as e:
     print(f"Denied: {e.reason}")
-
-except ExecutionHeldError as e:
-    # HOLD — awaiting human authorization
-    print(f"Held until: {e.deadline_ts}")
+    print(f"Proof:  {e.boundary_id}")
+    # Signed negative proof issued — execution structurally blocked
 ```
 
-### Severity-adaptive gate
+**Output:**
+```
+Denied: risk_score=85 exceeds threshold=80
+Proof:  3f9a1c2d-...
+```
+
+Every denial issues a **signed proof**. The agent cannot retry past it.
+
+---
+
+## Example 2 — Campaign AI: HOLD
 
 ```python
-from execution_boundary import SeverityGate, SystemSeverity
+from agent_execution_guard import ExecutionGuard, Intent, SystemSeverity, GuardHeldError
+from datetime import datetime, timezone
 
-gate = SeverityGate()
+guard = ExecutionGuard()
 
-# System severity from any source: infrastructure, portfolio, CI/CD, etc.
-current_severity = SystemSeverity(score=0.55, source="infra_error_rate")
-
-result = gate.evaluate(
-    intent,
-    engine=engine,
-    system_severity=current_severity,
+intent = Intent(
+    actor="campaign_ai",
+    action="aggressive_targeting",
+    payload="launch targeted ad campaign segment=undecided_voters",
+    timestamp=datetime.now(timezone.utc),
 )
 
-print(f"State: {result.state}")               # COOLDOWN
-print(f"Threshold: {result.effective_threshold}")  # 30
-print(f"Denied: {result.denied}")             # True (risk=40 > threshold=30)
-print(f"State changed: {result.state_changed}")
+# Elevated system severity (e.g. election period, market stress)
+severity = SystemSeverity(score=0.60, source="geopolitical_risk_model")
+
+try:
+    result = guard.evaluate(intent, severity=severity)
+
+except GuardHeldError as e:
+    print(f"Held — requires human approval")
+    print(f"Deadline: {e.deadline_ts}")
+    print(f"Proof:    {e.boundary_id}")
 ```
 
----
+**Output:**
+```
+Held — requires human approval
+Deadline: 2026-03-01T10:28:00+00:00
+Proof:    7d2f9e1a-...
+```
 
-## Why this exists
-
-The AI agent ecosystem is building execution capabilities
-faster than execution accountability.
-
-Current approaches:
-
-- **Alignment** — hopes the model behaves correctly
-- **Guardrails** — filters input/output at the prompt level
-- **Monitoring** — observes what happened after the fact
-
-What's missing:
-
-- **Deterministic execution control** — structure that prevents unauthorized execution before it happens
-- **Risk-adaptive authority** — execution permissions that respond to system state
-- **Cryptographic decision trails** — proof of what was decided, why, and under which policy
-
-This layer fills that gap.
+`HOLD` is not a failure. It is a **decision checkpoint**.
+Execution waits for a human token before proceeding.
 
 ---
 
-## Production evidence
+## How it works
 
-This architecture is not theoretical.
+```
+Intent → Risk Score → Severity State → Guard Decision → Signed Proof
+```
 
-The core state machine — severity scoring, hysteresis-based transitions,
-and deterministic execution control — has been validated
-in a live risk-adaptive system handling real financial decisions.
+| Component | What it does |
+|-----------|-------------|
+| Risk scoring | Rule-based 0–100 score per action |
+| Severity gate | ACTIVE / OBSERVE / COOLDOWN — tightens threshold as risk rises |
+| Policy guard | Unknown agent or action → immediate DENY |
+| Decision trail | Every decision signed (ED25519) + ledgered (SHA-256 chain) |
 
-Same structure. Different domain. Proven behavior.
+### Three states
+
+| State | Trigger | Threshold |
+|-------|---------|-----------|
+| ACTIVE | severity < 0.20 | risk ≥ 80 → DENY |
+| OBSERVE | severity ≥ 0.20 | risk ≥ 60 → DENY |
+| COOLDOWN | severity ≥ 0.40 | risk ≥ 30 → DENY |
+
+Hysteresis prevents oscillation between states.
+
+### Four outcomes
+
+| Outcome | Meaning |
+|---------|---------|
+| `ALLOW` | Proceed. Signed proof issued. |
+| `DENY` | Blocked. Signed negative proof issued. Agent cannot retry. |
+| `HOLD` | Awaiting human approval. Deadline enforced. |
+| `EXPIRED` | HOLD deadline passed without approval. Blocked. |
 
 ---
 
-## Components
+## Policy guard
 
-| Module | Responsibility |
-|--------|----------------|
-| `engine.py` | Rule-based risk scoring + ALLOW/HALT/HOLD decisions |
-| `enforce.py` | Unified lifecycle: evaluate → proof → ledger → exception |
-| `severity_gate.py` | Severity score → state machine → adaptive threshold |
-| `crypto.py` | ED25519 key management + signing |
-| `ledger.py` | Append-only NDJSON hash-chain ledger |
-| `models.py` | `ExecutionIntent`, `Decision`, `BoundaryRecord`, exceptions |
+Unknown agents and actions are denied by default.
 
----
+```yaml
+# policy.yaml
+defaults:
+  unknown_agent:  DENY
+  unknown_action: DENY
 
-## Risk scoring
+identity:
+  agents:
+    - agent_id: "agent.finance"
+      allowed_actions:
+        - action: "wire_transfer"
+        - action: "read_ledger"
+```
 
-Rule-based evaluation (0–100 scale):
+```python
+import yaml
+with open("policy.yaml") as f:
+    policy = yaml.safe_load(f)
 
-| Range | Level    | Examples                         |
-|-------|----------|----------------------------------|
-| 0–20  | Low      | `ls`, `cat`, `grep`, `pwd`       |
-| 21–60 | Medium   | `rm file`, general modifications |
-| 61–80 | High     | `drop table`, schema changes     |
-| 81–100| Critical | `rm -rf /`, root deletion        |
-
-Default halt threshold: **80** (dynamically adjusted by severity state).
+result = guard.evaluate(intent, policy=policy)
+# unknown agent → immediate DENY, signed proof, no risk scoring needed
+```
 
 ---
 
 ## Cryptographic proof
 
-**Every decision — ALLOW and DENY — is signed and ledgered.**
+Every decision — `ALLOW` and `DENY` — is signed and ledgered.
+
+```python
+# Verify any past decision
+verification = guard.verify(proof)
+print(verification.valid)    # True
+print(verification.message)  # "Proof verified at ledger index 7"
+```
 
 - Algorithm: ED25519
 - Ledger: append-only NDJSON with SHA-256 hash chain
 - Verification: offline, no external dependencies
 
-```python
-# Verify any past decision
-result = engine.verify(proof)
-print(result.valid)    # True
-print(result.message)  # "Proof verified at ledger index 7"
+---
+
+## Install
+
+```bash
+pip install agent-execution-guard
+```
+
+Requires Python 3.10+. No external services. Runs offline.
+
+Optional:
+```bash
+pip install pyyaml          # for policy.yaml loading
+pip install opentelemetry-api  # for OTel span export
 ```
 
 ---
 
 ## Roadmap
 
-- [x] Rule-based risk scoring (ALLOW / HALT)
+- [x] Rule-based risk scoring (ALLOW / DENY)
 - [x] ED25519 cryptographic proof
 - [x] Append-only hash-chain ledger
-- [x] Unified enforcement lifecycle (enforce_boundary)
-- [x] HOLD state + human approval flow
-- [x] 2-hash structure (decision_hash + decision_instance_hash)
 - [x] Severity-driven state machine (ACTIVE / OBSERVE / COOLDOWN)
-- [x] Hysteresis-based state transitions
+- [x] Policy guard (unknown agent/action → DENY)
+- [x] HOLD state + human approval checkpoint
+- [ ] `pip install agent-execution-guard` (TestPyPI → PyPI)
 - [ ] OTel-native decision trail export
 - [ ] MCP integration for agent frameworks
-- [ ] Policy versioning and hot-reload
 - [ ] Human-in-the-loop authority token protocol
-
----
-
-## Related work
-
-- [OpenTelemetry GenAI Semantic Conventions](https://github.com/open-telemetry/semantic-conventions)
-- NIST AI Risk Management Framework
-- EU AI Act high-risk classification
 
 ---
 
@@ -251,6 +241,4 @@ Apache 2.0
 
 ---
 
-*"Observability without control is incomplete.
-Control without risk adaptation is brittle.
-This layer connects both."*
+*Your AI agent will execute anything. This makes it stop.*

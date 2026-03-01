@@ -3,19 +3,20 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "execution-boundary"
+name = "agent-execution-guard"
 version = "0.1.0"
-description = "A deterministic execution boundary engine for AI agents with cryptographic proof"
+description = "A lightweight execution guard for AI agents. Decide ALLOW / HOLD / DENY before your agent performs real actions."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "Proprietary"}
+license = {text = "Apache-2.0"}
 authors = [
     {name = "Nick Heo", email = "nick-heo-eg@users.noreply.github.com"}
 ]
-keywords = ["ai", "agent", "boundary", "execution", "proof", "ledger", "governance"]
+keywords = ["ai", "agent", "guard", "execution", "governance", "llm", "safety"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Security",
     "Programming Language :: Python :: 3",
@@ -32,6 +33,10 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["agent_execution_guard*", "execution_boundary*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
