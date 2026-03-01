@@ -36,6 +36,12 @@ from execution_boundary import (
 from execution_boundary.policy_guard import PolicyViolation
 
 
+# ── Sentinel: explicit opt-out of policy enforcement ─────────────────────────
+# Usage: guard.evaluate(intent, policy=ALLOW_ALL)
+# Disables identity check — risk scoring still applies.
+ALLOW_ALL = object()
+
+
 # ── Public re-exports (renamed for clarity) ───────────────────────────────────
 
 Intent         = ExecutionIntent
@@ -92,33 +98,48 @@ class ExecutionGuard:
         intent: Intent,
         *,
         severity: Optional[SystemSeverity] = None,
-        policy: Any = None,
+        policy: Any,                          # required — no default
         hold_deadline_seconds: int = 300,
     ) -> GuardResult:
         """
         Evaluate an execution intent.
 
+        policy is required. No policy = no execution.
+        Pass policy=ALLOW_ALL to explicitly disable identity checks.
+
         Args:
             intent:               The execution request.
             severity:             Current system severity [0.0–1.0]. None = ACTIVE.
-            policy:               Policy dict (from policy.yaml). None = no identity check.
+            policy:               Policy dict (from policy.yaml). Required.
+                                  Pass ALLOW_ALL to explicitly skip identity check.
             hold_deadline_seconds: HOLD window in seconds (default 5 min).
 
         Returns:
             GuardResult (BoundaryRecord) — only on ALLOW.
 
         Raises:
-            GuardDeniedError  — DENY (risk, policy violation, or unknown agent/action)
+            GuardDeniedError  — DENY (no policy, risk, policy violation, unknown agent/action)
             GuardHeldError    — HOLD (awaiting human approval)
             GuardExpiredError — HOLD deadline passed
         """
+        # ── Fail-closed: no policy = no execution ────────────────────────────
+        if policy is None:
+            raise GuardDeniedError(
+                boundary_id = "no-policy",
+                reason      = "no_policy: policy is required",
+                risk_score  = 0,
+            )
+
+        # ── ALLOW_ALL sentinel: skip identity check, risk scoring only ────────
+        _policy = None if policy is ALLOW_ALL else policy
+
         if severity is not None:
             # Severity-adaptive path: state machine adjusts threshold
             result = self._severity_gate.evaluate(
                 intent,
                 engine=self._engine,
                 system_severity=severity,
-                policy=policy,
+                policy=_policy,
                 hold_deadline_seconds=hold_deadline_seconds,
             )
             # Re-raise exceptions from the gate result
@@ -130,7 +151,7 @@ class ExecutionGuard:
             return enforce_boundary(
                 intent,
                 engine=self._engine,
-                policy=policy,
+                policy=_policy,
                 hold_deadline_seconds=hold_deadline_seconds,
             )
 
@@ -147,4 +168,5 @@ __all__ = [
     "GuardDeniedError",
     "GuardHeldError",
     "GuardExpiredError",
+    "ALLOW_ALL",
 ]

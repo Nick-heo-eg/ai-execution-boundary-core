@@ -93,7 +93,10 @@ def test_E2_decision_hash_is_deterministic(engine):
 
 def test_E3_policy_hash_in_record(engine):
     """BoundaryRecord에 policy_hash가 포함된다."""
-    policy = {"max_risk": 80, "version": "v1"}
+    policy = {
+        "version": 1,
+        "defaults": {"unknown_agent": "ALLOW", "unknown_action": "ALLOW"},
+    }
     rec = enforce_boundary(_intent(), engine=engine, policy=policy)
     assert len(rec.policy_hash) == 64  # sha256 hex
     assert rec.policy_hash != "0" * 64
