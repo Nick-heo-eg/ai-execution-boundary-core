@@ -24,6 +24,16 @@ Initial public release.
 
 ---
 
+## [0.1.1] - 2026-03-01
+
+### Changed
+
+- README aligned with public release strategy
+- Removed LLM fusion roadmap
+- Changelog condensed
+
+---
+
 ## [Unreleased]
 
 ### Planned for v0.2.0
@@ -35,4 +45,5 @@ Initial public release.
 
 ## Version History
 
+- **v0.1.1** (2026-03-01): README alignment, roadmap cleanup
 - **v0.1.0** (2026-03-01): Initial public release
