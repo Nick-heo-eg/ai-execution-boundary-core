@@ -1,8 +1,8 @@
 # Product Identity
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Positioning:** Developer Infrastructure
-**Status:** Private (Future-openable)
+**Status:** Public (Apache 2.0)
 
 ---
 
@@ -72,7 +72,7 @@ This sentence defines everything:
 
 ### Not Our Audience (Now)
 
-- Enterprise security teams → Future v1.0+ with SaaS offering
+- Enterprise security teams → Future v1.0+
 - Compliance officers → Future product extension
 - AI researchers → May use, but not primary design driver
 
@@ -170,32 +170,23 @@ decision = engine.evaluate(intent)
 - Integration examples
 
 **Distribution:**
-- Private repository (now)
-- Public release when strategically ready
-- pip install pattern
-
-**Pricing:**
-- Free tier (self-hosted, open source future)
-- Enterprise tier (managed hosting, future)
-- Regulated tier (compliance features, future)
+- Public (PyPI: agent-execution-guard)
+- Apache 2.0
 
 ---
 
 ### Future Phases
 
-**v0.2: Risk Fusion**
-- Add LLM-based risk scoring (optional)
-- Hybrid: Rule-based + LLM judgment
-- Still deterministic for same input
+**v0.2: LangChain Adapter** ✅
+- GuardedTool wrapper
+- Optional langchain-core dependency
 
-**v0.3: Human-in-Loop**
-- HOLD state implementation
-- Approval workflow integration
-- Time-bounded decisions
+**v0.3: OTel + MCP**
+- OTel-native decision trail export
+- MCP integration for agent frameworks
 
-**v0.4: Enterprise Expansion**
-- Multi-tenant support
-- SaaS offering
+**v0.4+: Ecosystem Expansion**
+- Additional framework adapters
 - Advanced audit/reporting
 
 ---
@@ -300,9 +291,8 @@ When we go public, success looks like:
 - Value: Ecosystem growth, adoption
 
 **Extensions (Future):**
-- Enterprise features: Closed/proprietary
-- Managed hosting: SaaS product
-- Compliance modules: Licensed separately
+- Additional framework adapters
+- Compliance modules (future)
 
 ---
 
@@ -312,5 +302,5 @@ Product decisions validate against this document.
 
 If a feature doesn't align with "Developer Infrastructure for AI Agents," it belongs in a different product or future version.
 
-**Last Updated:** 2026-02-22
-**Next Review:** v0.2.0 planning
+**Last Updated:** 2026-03-01
+**Next Review:** v0.3.0 planning

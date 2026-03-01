@@ -2,9 +2,9 @@
 
 Installation instructions for AI Execution Boundary Core.
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Python:** 3.10+
-**Status:** Private repository (manual installation)
+**Status:** Public (PyPI)
 
 ---
 
