@@ -40,8 +40,12 @@ htmlcov/
 
 # Execution artifacts
 .private_key.pem
-judgment_ledger.ndjson
+*.ndjson
+*.json
 execution_output/
+
+# Test environments
+test_env/
 
 # OS
 .DS_Store
