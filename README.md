@@ -98,11 +98,11 @@ high = SystemSeverity(score=0.60, source="risk_model")
 low  = SystemSeverity(score=0.10, source="baseline")
 
 try:
-    guard.evaluate(intent, severity=high)
+    guard.evaluate(intent, severity=high, policy=ALLOW_ALL)
 except GuardDeniedError:
     print("DENY  (COOLDOWN — threshold=30)")
 
-result = guard.evaluate(intent, severity=low)
+result = guard.evaluate(intent, severity=low, policy=ALLOW_ALL)
 print("ALLOW (ACTIVE  — threshold=80)")
 ```
 
@@ -186,12 +186,6 @@ Intent → Risk Score → Severity State → Guard Decision → Signed Proof
 ## Cryptographic proof
 
 Every decision — ALLOW and DENY — is signed and ledgered.
-
-```python
-verification = guard.verify(proof)
-print(verification.valid)    # True
-print(verification.message)  # "Proof verified at ledger index 7"
-```
 
 - ED25519 signatures
 - Append-only NDJSON hash chain
